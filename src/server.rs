@@ -34,32 +34,33 @@ fn handle_client(mut stream: TcpStream, db: &mut Database) -> bool {
 
     let mut buf = [0u8; 4096];
 
-    match stream.read(&mut buf) {
-        Ok(0) => {
-            println!("Client disconnected");
-        }
-        Ok(n) => {
-            println!("Received {} bytes", n);
-            let input = String::from_utf8_lossy(&buf[..n]);
+    loop {
+        match stream.read(&mut buf) {
+            Ok(0) => {
+                println!("Client disconnected");
+                return false;
+            }
+            Ok(n) => {
+                println!("Received {} bytes", n);
+                let input = String::from_utf8_lossy(&buf[..n]);
 
-            match handle_command(&input, db) {
-                CommandOutcome::Respond(response) => {
-                    let _ = stream.write_all(response.as_bytes());
-                    if let Err(err) = writeln!(stream, "hello") {
-                        eprintln!("Write failed: {}", err);
+                match handle_command(&input, db) {
+                    CommandOutcome::Respond(response) => {
+                        if let Err(err) = stream.write_all(response.as_bytes()) {
+                            eprintln!("Write failed: {}", err);
+                            return false;
+                        }
+                    }
+                    CommandOutcome::Shutdown => {
+                        let _ = stream.write_all(b"BYE\n");
+                        return true;
                     }
                 }
-                CommandOutcome::Shutdown => {
-                    let _ = stream.write_all(b"BYE\n");
-                    return true;
-                }
+            }
+            Err(err) => {
+                eprintln!("Read failed: {}", err);
+                return false;
             }
         }
-        Err(err) => {
-            eprintln!("Read failed: {}", err);
-            return false;
-        }
     }
-
-    false
 }
