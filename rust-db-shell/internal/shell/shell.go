@@ -46,6 +46,7 @@ func Run() {
 			resp, err := db.Command(input)
 			if err != nil {
 				fmt.Println("Network error:", err)
+				status.isConnected = false
 				continue
 			}
 			fmt.Print(resp)

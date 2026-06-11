@@ -1,21 +1,21 @@
 use std::collections::HashMap;
 
 pub struct Database {
-    db: HashMap<String, String>,
+    data: HashMap<String, String>,
 }
 
 impl Database {
     pub fn new() -> Self {
         Self {
-            db: HashMap::new(),
+            data: HashMap::new(),
         }
     }
 
     pub fn set(&mut self, key: &str, value: &str) {
-        self.db.insert(key.to_string(), value.to_string());
+        self.data.insert(key.to_string(), value.to_string());
     }
 
-    pub fn get(&self, key: &str) -> Option<&String> {
-        self.db.get(key)
+    pub fn get(&self, key: &str) -> Option<String> {
+        self.data.get(key).cloned()
     }
 }

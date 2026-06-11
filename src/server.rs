@@ -1,10 +1,12 @@
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
+use std::sync::{Arc, RwLock};
+use std::thread;
 
-use crate::commands::{handle_command, CommandOutcome};
+use crate::commands::{CommandOutcome, handle_command};
 use crate::database::Database;
 
-pub fn run(addr: &str, db: &mut Database) {
+pub fn run(addr: &str, db: Arc<RwLock<Database>>) {
     let listener = match TcpListener::bind(addr) {
         Ok(listener) => {
             println!("Listening on {}", addr);
@@ -19,17 +21,20 @@ pub fn run(addr: &str, db: &mut Database) {
     for stream in listener.incoming() {
         match stream {
             Ok(stream) => {
-                if handle_client(stream, db) {
-                    println!("Shutting down");
-                    break;
-                }
+                let db = Arc::clone(&db);
+
+                thread::spawn(move || {
+                    handle_client(stream, db);
+                });
             }
-            Err(err) => eprintln!("Connection failed: {}", err),
+            Err(err) => {
+                eprintln!("Connection failed: {}", err);
+            }
         }
     }
 }
 
-fn handle_client(mut stream: TcpStream, db: &mut Database) -> bool {
+fn handle_client(mut stream: TcpStream, db: Arc<RwLock<Database>>) {
     println!("New connection from {}", stream.peer_addr().unwrap());
 
     let mut buf = [0u8; 4096];
@@ -38,28 +43,30 @@ fn handle_client(mut stream: TcpStream, db: &mut Database) -> bool {
         match stream.read(&mut buf) {
             Ok(0) => {
                 println!("Client disconnected");
-                return false;
+                return;
             }
             Ok(n) => {
-                println!("Received {} bytes", n);
                 let input = String::from_utf8_lossy(&buf[..n]);
 
-                match handle_command(&input, db) {
+                let outcome = handle_command(input.as_ref(), &db);
+
+                match outcome {
                     CommandOutcome::Respond(response) => {
                         if let Err(err) = stream.write_all(response.as_bytes()) {
-                            eprintln!("Write failed: {}", err);
-                            return false;
+                            println!("Write failed: {}", err);
+                            return;
                         }
                     }
                     CommandOutcome::Shutdown => {
                         let _ = stream.write_all(b"BYE\n");
-                        return true;
+                        println!("Client requested disconnect");
+                        return;
                     }
                 }
             }
             Err(err) => {
                 eprintln!("Read failed: {}", err);
-                return false;
+                return;
             }
         }
     }
