@@ -19,15 +19,7 @@ func Run() {
 	status := Status{isConnected: false}
 
 	db := client.NewClient(addr)
-
-	fmt.Printf("Connecting to database at %s...\n", addr)
-	if err := db.Connect(); err != nil {
-		fmt.Printf("Warning: Could not connect to database (%v). Operating in offline mode.\n", err)
-	} else {
-		status.isConnected = true
-		fmt.Println("Connected successfully!")
-	}
-
+	connect(db, &status)
 	for {
 		fmt.Print("shell> ")
 
@@ -46,6 +38,10 @@ func Run() {
 			continue
 		}
 
+		if !status.isConnected && input == "connect" {
+			connect(db, &status)
+		}
+
 		if status.isConnected {
 			resp, err := db.Command(input)
 			if err != nil {
@@ -59,6 +55,15 @@ func Run() {
 	}
 }
 
+func connect(db *client.Client, status *Status) {
+	fmt.Printf("Connecting to database at %s...\n", addr)
+	if err := db.Connect(); err != nil {
+		fmt.Printf("Warning: Could not connect to database (%v). Operating in offline mode.\n", err)
+	} else {
+		status.isConnected = true
+		fmt.Println("Connected successfully!")
+	}
+}
 func isExit(input string) bool {
 	clean := strings.ToLower(strings.TrimSpace(input))
 	return clean == "exit" || clean == "quit" || clean == "q"
