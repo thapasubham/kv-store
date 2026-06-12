@@ -8,8 +8,10 @@ pub fn handle_command(input: &str, db: &Arc<RwLock<Database>>) -> CommandOutcome
     let parts: Vec<&str> = input.trim().split_whitespace().collect();
 
     if parts.len() >= 3 && parts[0].eq_ignore_ascii_case("SET") {
-        let mut db = db.write().unwrap();
-
+        let mut db = match db.write() {
+            Ok(db) => db,
+            Err(_) => return CommandOutcome::Respond("internal error".into()),
+        };
         let result = set_value::handle(&mut db, &parts[1..]);
 
         return CommandOutcome::Respond(result);
@@ -17,7 +19,10 @@ pub fn handle_command(input: &str, db: &Arc<RwLock<Database>>) -> CommandOutcome
 
     if parts.len() == 2 && parts[0].eq_ignore_ascii_case("GET") {
         let result = {
-            let mut db = db.write().unwrap();
+            let mut db = match db.write() {
+                Ok(db) => db,
+                Err(_) => return CommandOutcome::Respond("internal error".into()),
+            };
             get_value::handle(&mut db, parts[1])
         };
 
