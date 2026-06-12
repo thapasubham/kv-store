@@ -5,12 +5,14 @@ use crate::database::Database;
 use super::CommandOutcome;
 
 pub fn handle(db: &mut Database, key: &str) -> String {
-    match db.get(key) {
-        Some(value) => format!("{value}\n"),
-        None => "NOT FOUND\n".to_string(),
+    if db.delete(key) {
+        "OK\n".to_string()
+    } else {
+        "NOT FOUND\n".to_string()
     }
 }
-pub fn handle_get(parts: &[&str], db: &Arc<RwLock<Database>>) -> CommandOutcome {
+
+pub fn handle_delete(parts: &[&str], db: &Arc<RwLock<Database>>) -> CommandOutcome {
     if parts.len() != 2 {
         return CommandOutcome::Respond("ERR\n".into());
     }

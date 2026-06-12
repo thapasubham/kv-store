@@ -7,6 +7,7 @@ use super::CommandOutcome;
 pub fn text() -> &'static str {
     "GET key - get value by key\n\
      SET key value [EX seconds] - set value with optional TTL\n\
+     DELETE key - remove key\n\
      HELP - show this message\n\
      EXIT - disconnect\n"
 }

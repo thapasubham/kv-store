@@ -1,37 +1,19 @@
 use std::sync::{Arc, RwLock};
 
-use crate::database::Database;
+use crate::{commands::command_router, database::Database};
 
-use super::{CommandOutcome, exit, get_value, set_value};
+use super::CommandOutcome;
 
 pub fn handle_command(input: &str, db: &Arc<RwLock<Database>>) -> CommandOutcome {
     let parts: Vec<&str> = input.trim().split_whitespace().collect();
+    let Some(cmd_word) = parts.first() else {
+        return CommandOutcome::Respond("ERR unknown command".into());
+    };
 
-    if parts.len() >= 3 && parts[0].eq_ignore_ascii_case("SET") {
-        let mut db = match db.write() {
-            Ok(db) => db,
-            Err(_) => return CommandOutcome::Respond("internal error".into()),
-        };
-        let result = set_value::handle(&mut db, &parts[1..]);
+    let cmd = cmd_word.to_ascii_uppercase();
+    let Some(handler) = command_router::router().get(cmd.as_str()) else {
+        return CommandOutcome::Respond("ERR unknown command".into());
+    };
 
-        return CommandOutcome::Respond(result);
-    }
-
-    if parts.len() == 2 && parts[0].eq_ignore_ascii_case("GET") {
-        let result = {
-            let mut db = match db.write() {
-                Ok(db) => db,
-                Err(_) => return CommandOutcome::Respond("internal error".into()),
-            };
-            get_value::handle(&mut db, parts[1])
-        };
-
-        return CommandOutcome::Respond(result);
-    }
-
-    if parts.len() == 1 && parts[0].eq_ignore_ascii_case("EXIT") {
-        return exit::handle();
-    }
-
-    CommandOutcome::Respond("ERR\n".to_string())
+    handler(&parts, db)
 }
